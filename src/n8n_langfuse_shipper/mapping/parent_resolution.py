@@ -168,11 +168,13 @@ def resolve_parent(
         parent_id = last_span_for_node.get(agent_name, root_span_id)
         prev_node = agent_name
         return parent_id, prev_node, prev_node_run
-    if (
-        getattr(run, "source", None)
-        and len(run.source) > 0
-        and run.source[0].previousNode
-    ):
+      if (
+       getattr(run, "source", None)
+       and len(run.source) > 0
+       and run.source[0] is not None
+       and run.source[0].previousNode
+      ):
+
         prev_node = run.source[0].previousNode
         prev_node_run = run.source[0].previousNodeRun
         if prev_node_run is not None:
