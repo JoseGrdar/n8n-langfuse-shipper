@@ -1142,8 +1142,18 @@ def _map_execution(
 
         else:
             trace.metadata[_k] = _v
+    # Auto-tag errored executions for fast filtering in Langfuse UI.
+    # Any non-success / non-waiting status (error, crashed, canceled, failed,
+    # unknown) gets an `error` tag, preserving anything already in trace.tags.
+    _status = (getattr(record, "status", "") or "").lower()
+    if _status and _status not in ("success", "waiting"):
+        _existing_tags = list(trace.tags or [])
+        if "error" not in _existing_tags:
+            _existing_tags.append("error")
+        trace.tags = _existing_tags
 
     root_span_id = str(uuid5(SPAN_NAMESPACE, f"{trace_id}:root"))
+
     root_span = LangfuseSpan(
         id=root_span_id,
         trace_id=trace_id,
