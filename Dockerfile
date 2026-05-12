@@ -50,5 +50,8 @@ HEALTHCHECK --interval=1m --timeout=10s --start-period=30s CMD python -c \
     "import importlib,sys; importlib.import_module('n8n_langfuse_shipper.mapper'); sys.exit(0)" || exit 1
 
 # Default command runs shipper in dry-run mode (safe). Override with --no-dry-run in runtime args.
-ENTRYPOINT ["n8n-shipper", "shipper"]
+COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
+RUN chmod +x /usr/local/bin/docker-entrypoint.sh
+ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
 CMD ["--limit", "50", "--no-dry-run"]
+
