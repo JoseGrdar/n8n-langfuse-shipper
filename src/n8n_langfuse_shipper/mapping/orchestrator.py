@@ -1123,9 +1123,23 @@ def _map_execution(
             trace.version = str(_v)
         elif _k == "langfuse_environment":
             trace.environment = str(_v)
+        elif _k in ("langfuse_input", "langfuse_output"):
+            # Populate trace.input / trace.output so they show up at trace root
+            # in Langfuse UI. Try to JSON-decode the string first (so structured
+            # payloads render nicely); fall back to raw string.
+            try:
+                import json as _json
+                _val = _json.loads(_v) if isinstance(_v, str) else _v
+            except Exception:  # pragma: no cover
+                _val = _v
+            if _k == "langfuse_input":
+                trace.input = _val
+            else:
+                trace.output = _val
         elif _k.startswith("langfuse_"):
             # Reserved namespace; ignore unknown langfuse_* keys
             pass
+
         else:
             trace.metadata[_k] = _v
 
