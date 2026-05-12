@@ -1133,9 +1133,10 @@ def _map_execution(
             except Exception:  # pragma: no cover
                 _val = _v
             if _k == "langfuse_input":
-                trace.input = _val
+                trace.trace_input = _val
             else:
-                trace.output = _val
+                trace.trace_output = _val
+
         elif _k.startswith("langfuse_"):
             # Reserved namespace; ignore unknown langfuse_* keys
             pass
