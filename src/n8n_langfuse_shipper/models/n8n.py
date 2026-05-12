@@ -95,5 +95,9 @@ class N8nExecutionRecord(BaseModel):
     stoppedAt: datetime
     workflowData: WorkflowData
     data: ExecutionData
+    # Custom key/value rows from n8n's execution_metadata table.
+    # Used to enrich the Langfuse trace with tags, session_id, user_id, etc.
+    # Populated by db.py via JSONB aggregation.
+    exec_metadata: Dict[str, str] = Field(default_factory=dict)
 
     # Additional fields sometimes present in n8n execution rows can be added here later as needed.
