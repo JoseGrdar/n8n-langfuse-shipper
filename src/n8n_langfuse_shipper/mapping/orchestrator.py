@@ -1092,13 +1092,43 @@ def _map_execution(
     stopped_raw = record.stoppedAt
     if stopped_raw is not None and stopped_raw.tzinfo is None:
         stopped_raw = stopped_raw.replace(tzinfo=timezone.utc)
-    base_name = record.workflowData.name or "execution"
+        base_name = record.workflowData.name or "execution"
     trace = LangfuseTrace(
         id=trace_id,
         name=base_name,
         timestamp=started_at,
         metadata={"workflowId": record.workflowId, "status": record.status},
     )
+    # Enrich trace with values from n8n execution_metadata table.
+    # Recognized langfuse_* keys map to dedicated LangfuseTrace fields;
+    # other keys are added to trace.metadata. Persisted in n8n via
+    # $execution.customData.set(key, value) in Code nodes.
+    _exec_meta = getattr(record, "exec_metadata", None) or {}
+    for _k, _v in _exec_meta.items():
+        if _k == "langfuse_tags":
+            try:
+                import json as _json
+                _parsed = _json.loads(_v) if isinstance(_v, str) else list(_v)
+                if isinstance(_parsed, list):
+                    trace.tags = [str(_t) for _t in _parsed]
+            except Exception:  # pragma: no cover
+                pass
+        elif _k == "langfuse_user_id":
+            trace.user_id = str(_v)
+        elif _k == "langfuse_session_id":
+            trace.session_id = str(_v)
+        elif _k == "langfuse_release":
+            trace.release = str(_v)
+        elif _k == "langfuse_version":
+            trace.version = str(_v)
+        elif _k == "langfuse_environment":
+            trace.environment = str(_v)
+        elif _k.startswith("langfuse_"):
+            # Reserved namespace; ignore unknown langfuse_* keys
+            pass
+        else:
+            trace.metadata[_k] = _v
+
     root_span_id = str(uuid5(SPAN_NAMESPACE, f"{trace_id}:root"))
     root_span = LangfuseSpan(
         id=root_span_id,
