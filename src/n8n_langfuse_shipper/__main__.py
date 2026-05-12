@@ -375,6 +375,7 @@ def shipper(
                 status=raw["status"],
                 startedAt=raw["startedAt"],
                 stoppedAt=raw["stoppedAt"],
+                exec_metadata={k: str(v) for k, v in (raw.get("exec_metadata") or {}).items()},
                 workflowData=WorkflowData(**raw["workflowData"]),
                 # Attempt to parse full execution data (with runData). Fallback to empty if shape unexpected.
                 data=_build_execution_data(
