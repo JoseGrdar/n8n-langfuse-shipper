@@ -168,16 +168,26 @@ class ExecutionSource:
             wf_filter_clause = ' AND e."workflowId" = ANY(%s)'
             params.append(self._filter_workflow_ids)
 
+        # Always JOIN execution_metadata as a JSONB object so callers receive
+        # custom rows (e.g. langfuse_tags, langfuse_session_id) without an
+        # extra round trip. Uses a LATERAL subquery to coalesce missing rows
+        # to an empty {} object.
+        meta_table = f'"{self._schema}"."{self._metadata_table_name}"'
+        meta_lateral = (
+            "LEFT JOIN LATERAL (SELECT COALESCE(jsonb_object_agg(m.key, m.value), "
+            "'{}'::jsonb) AS exec_metadata FROM " + meta_table +
+            " m WHERE m.\"executionId\" = e.id) em ON true"
+        )
         if self._require_execution_metadata:
-            meta_table = f'"{self._schema}"."{self._metadata_table_name}"'
             # Only select executions that have at least one metadata row referencing them (ANY key/value).
-            # Use EXISTS to avoid row multiplication from multiple metadata rows.
             sql = (
                 f'SELECT e.id, e."workflowId" AS "workflowId", e.status, '
                 f'e."startedAt" AS "startedAt", e."stoppedAt" AS "stoppedAt", '
-                f'd."workflowData" AS "workflowData", d."data" AS data '
+                f'd."workflowData" AS "workflowData", d."data" AS data, '
+                f'em.exec_metadata AS exec_metadata '
                 f'FROM {entity_table} e '
                 f'JOIN {data_table} d ON e.id = d."executionId" '
+                f'{meta_lateral} '
                 f'WHERE e.id > %s AND EXISTS (SELECT 1 FROM {meta_table} m WHERE m."executionId" = e.id){wf_filter_clause} '
                 'ORDER BY e.id ASC '
                 'LIMIT %s'
@@ -187,9 +197,11 @@ class ExecutionSource:
             sql = (
                 f'SELECT e.id, e."workflowId" AS "workflowId", e.status, '
                 f'e."startedAt" AS "startedAt", e."stoppedAt" AS "stoppedAt", '
-                f'd."workflowData" AS "workflowData", d."data" AS data '
+                f'd."workflowData" AS "workflowData", d."data" AS data, '
+                f'em.exec_metadata AS exec_metadata '
                 f'FROM {entity_table} e '
                 f'JOIN {data_table} d ON e.id = d."executionId" '
+                f'{meta_lateral} '
                 f'WHERE e.id > %s{wf_filter_clause} '
                 'ORDER BY e.id ASC '
                 'LIMIT %s'
