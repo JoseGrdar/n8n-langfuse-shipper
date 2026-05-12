@@ -1092,7 +1092,7 @@ def _map_execution(
     stopped_raw = record.stoppedAt
     if stopped_raw is not None and stopped_raw.tzinfo is None:
         stopped_raw = stopped_raw.replace(tzinfo=timezone.utc)
-        base_name = record.workflowData.name or "execution"
+    base_name = record.workflowData.name or "execution"
     trace = LangfuseTrace(
         id=trace_id,
         name=base_name,
