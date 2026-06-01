@@ -369,6 +369,19 @@ def shipper(
         latest_started: Optional[datetime] = None
 
         async for raw in source.stream(start_after_id=effective_start_after, limit=limit):
+            if raw.get("startedAt") is None:
+                # n8n trigger executions can fail before startedAt is set (e.g., schedule/IMAP
+                # trigger crashes during init). The record has no usable timestamp and Pydantic
+                # validation on the non-optional `startedAt` field would crash the shipper,
+                # blocking all subsequent traces. Skip but advance last_id so the checkpoint
+                # can move past this row on the next persist tick.
+                logging.getLogger(__name__).warning(
+                    "Skipping execution %s with NULL startedAt (status=%s workflowId=%s); "
+                    "trigger likely crashed before init completed.",
+                    raw.get("id"), raw.get("status"), raw.get("workflowId"),
+                )
+                last_id = raw.get("id")
+                continue
             record = N8nExecutionRecord(
                 id=raw["id"],
                 workflowId=raw["workflowId"],
